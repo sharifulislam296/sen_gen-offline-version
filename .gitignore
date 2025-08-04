@@ -1,0 +1,6 @@
+﻿.venv/
+__pycache__/
+assets/imgcache/
+.env
+.env.*
+.streamlit/secrets.toml
