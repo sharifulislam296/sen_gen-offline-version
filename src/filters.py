@@ -1,13 +1,3 @@
-"""
-filters.py
-----------
-All rule-based helpers for Beginner Sentence Generator:
-
-• Oxford A1–A2 list loader
-• spaCy POS + lemma utilities
-• Sentence screening (length, required words, easy vocab)
-"""
-
 from __future__ import annotations
 import re, string
 from pathlib import Path
@@ -17,9 +7,6 @@ import spacy
 from wordfreq import zipf_frequency
 from textstat import flesch_reading_ease
 
-# ---------------------------------------------------------------
-# Data paths & beginner list
-# ---------------------------------------------------------------
 ROOT_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT_DIR / "data"
 A1_PATH  = DATA_DIR / "oxford_a2.txt"          # created by bootstrap.py
@@ -38,14 +25,8 @@ def _load_allowed_words(path: Path = A1_PATH) -> List[str]:
 
 ALLOWED_WORDS = set(_load_allowed_words())
 
-# ---------------------------------------------------------------
-# spaCy (tokeniser + POS)
-# ---------------------------------------------------------------
 NLP = spacy.load("en_core_web_sm", disable=["ner", "parser"])
 
-# ---------------------------------------------------------------
-# Small utility helpers
-# ---------------------------------------------------------------
 _PUNCT_RX = re.compile(rf"[{re.escape(string.punctuation)}]+")
 
 
@@ -80,9 +61,6 @@ def dedupe(seq: Sequence[str]) -> List[str]:
             out.append(s)
     return out
 
-# ---------------------------------------------------------------
-# Core screening helpers
-# ---------------------------------------------------------------
 def contains_all_required(sentence: str, required: Sequence[str]) -> bool:
     low = sentence.lower()
     return all(r.lower() in low for r in required)

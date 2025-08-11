@@ -22,19 +22,14 @@ from typing import Dict, List, Sequence
 
 from .filters import guess_pos, normalize_word
 
-# ------------------------------------------------------------------
 # Locate data directory (../data relative to this file)
-# ------------------------------------------------------------------
 _DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 _TPL_PATH = _DATA_DIR / "templates.json"
 
 # In-memory cache
 _TPL_CACHE: Dict[str, List[str]] | None = None
 
-
-# ------------------------------------------------------------------
 # Load template JSON (cached)
-# ------------------------------------------------------------------
 def _load_templates() -> Dict[str, List[str]]:
     global _TPL_CACHE
     if _TPL_CACHE is None:
@@ -44,10 +39,7 @@ def _load_templates() -> Dict[str, List[str]]:
         _TPL_CACHE = {k: v for k, v in data.items() if isinstance(v, list)}
     return _TPL_CACHE
 
-
-# ------------------------------------------------------------------
 # Utility: pick correct English article
-# ------------------------------------------------------------------
 def _fix_article(text: str) -> str:
     """
     Replace occurrences of 'a {word}' with 'an {word}' when the next
@@ -68,20 +60,14 @@ def _fix_article(text: str) -> str:
         i += 1
     return " ".join(out)
 
-
-# ------------------------------------------------------------------
 # Utility: truncate to max_len tokens (last-resort safety)
-# ------------------------------------------------------------------
 def _enforce_max_len(text: str, max_len: int) -> str:
     tokens = text.split()
     if len(tokens) <= max_len:
         return text
     return " ".join(tokens[:max_len]).rstrip(".,;:") + "."
 
-
-# ------------------------------------------------------------------
 # Single-word template selection & fill
-# ------------------------------------------------------------------
 def _fill_single(word: str, max_len: int = 15) -> str:
     tpl_data = _load_templates()
     pos = guess_pos(word)
@@ -98,9 +84,7 @@ def _fill_single(word: str, max_len: int = 15) -> str:
     return s
 
 
-# ------------------------------------------------------------------
 # Pair (two required words) template selection & fill
-# ------------------------------------------------------------------
 def _fill_pair(w1: str, w2: str, max_len: int = 15) -> str:
     tpl_data = _load_templates()
     choices = tpl_data.get("pair") or [
@@ -119,10 +103,7 @@ def _fill_pair(w1: str, w2: str, max_len: int = 15) -> str:
     s = _enforce_max_len(s, max_len)
     return s
 
-
-# ------------------------------------------------------------------
 # Multi-word (3+) fallback: simple comma join
-# ------------------------------------------------------------------
 def _fill_multi(words: Sequence[str], max_len: int = 15) -> str:
     # Try definitional template if available
     tpl_data = _load_templates()
@@ -139,10 +120,7 @@ def _fill_multi(words: Sequence[str], max_len: int = 15) -> str:
     s = _enforce_max_len(s, max_len)
     return s
 
-
-# ------------------------------------------------------------------
 # Public: build one fallback sentence for required_words (1+)
-# ------------------------------------------------------------------
 def fallback_sentence(required_words: Sequence[str], max_len: int = 15) -> str:
     """
     Return one guaranteed sentence that includes ALL required words
@@ -163,10 +141,7 @@ def fallback_sentence(required_words: Sequence[str], max_len: int = 15) -> str:
         return _fill_pair(req[0], req[1], max_len=max_len)
     return _fill_multi(req, max_len=max_len)
 
-
-# ------------------------------------------------------------------
 # Public: build multiple fallback sentences cycling through words
-# ------------------------------------------------------------------
 def fallback_sentences(words: Sequence[str], n: int, max_len: int = 15) -> List[str]:
     """
     Convenience: return up to `n` fallback sentences, each using one of the
