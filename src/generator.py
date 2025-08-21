@@ -2,6 +2,16 @@ from __future__ import annotations
 import argparse, base64, hashlib, json, os, re, sys
 from pathlib import Path
 from typing import Any, Dict, List, Sequence
+from enum import Enum
+
+class SentenceMode(str, Enum):
+    PER_WORD = "per-word"
+    MIXED = "mixed"
+
+class SentenceLevel(str, Enum):
+    A1 = "A1"
+    A2 = "A2"
+    B1 = "B1"
 
 # local deps
 import src.bootstrap  # ensures oxford_a2.txt is downloaded
@@ -34,6 +44,10 @@ IMG_DIR.mkdir(parents=True, exist_ok=True)
 def _openai_client() -> Any | None:
     if openai is None:
         return None
+    # Force offline if set
+    if os.getenv("OFFLINE") == "1":
+        print("[info] OFFLINE=1 → skipping OpenAI client init", file=sys.stderr)
+        return None
     key = os.getenv("OPENAI_API_KEY", "").strip()
     if not key:
         return None
@@ -46,7 +60,6 @@ def _openai_client() -> Any | None:
     except Exception as e:
         print(f"[warn] OpenAI init error: {e}", file=sys.stderr)
         return None
-
 
 # ====================== IMAGE HELPERS =============================
 def _normalize_size(size: str | None) -> str:
@@ -86,7 +99,6 @@ def generate_image(prompt: str, size: str = "1024x1024") -> str:
         print(f"[warn] image generation failed ({type(e).__name__}): {e}", file=sys.stderr)
         return ""
 
-
 def make_image_prompt(sentence: str, style: str) -> str:
     s = sentence.strip()
     if style == "Photorealistic":
@@ -100,7 +112,6 @@ def make_image_prompt(sentence: str, style: str) -> str:
         return f"Retro 16-bit pixel-art sprite. {s}"
     return ("Simple kid-friendly flat illustration, single subject, white background, "
             "no text or logos. Clearly depict: " + s)
-
 
 def call_llm(prompt: str, max_tokens: int = 400) -> str:
     client = _openai_client()
@@ -117,7 +128,6 @@ def call_llm(prompt: str, max_tokens: int = 400) -> str:
     except Exception as e:
         print(f"[warn] LLM call failed: {e}", file=sys.stderr)
         return ""
-
 
 def _strip_num(s: str) -> str:
     return re.sub(r"^\d+[.)]\s*", "", s.lstrip("-*•").strip())
@@ -201,13 +211,22 @@ def generate_fr_from_english(words: List[str], n: int = 3) -> Dict[str, Any]:
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": "Return strict JSON only."},
-                {"role": "user", "content": (
-                    f"English headwords: {', '.join(targets)}\n"
-                    f"Give 1–2 beginner French lemmas and {n} French A1 sentences "
-                    "with English gloss. Return JSON with keys en_word, fr_targets, sentences[]."
-                )},
+                {"role": "user",
+                 "content": (
+                     f"English headwords: {', '.join(targets)}\n"
+                     f"Give 1–2 beginner French lemmas and {n} French sentences with English gloss.\n"
+                     "Target difficulty: A2–B1 (still simple, but slightly richer than A1).\n"
+                     "Enforce VARIETY across the sentences for each word:\n"
+                     " - one uses a location/preposition (à, dans, sous, près de, etc.)\n"
+                     " - one uses possession (mon/ma/mes, son/sa/ses, etc.)\n"
+                     " - one uses a time expression (hier, demain, ce matin, le soir, souvent)\n"
+                     " - one is a negation or a question (ne … pas / ?)\n"
+                     " - one uses a connector (mais, parce que, quand)\n"
+                     "Keep each sentence ≤ 14 words; natural classroom-safe content.\n"
+                     "Return JSON as a single object with keys: en_word, fr_targets, sentences[]."
+                 )},
             ],
-            temperature=0.4,
+            temperature=0.6,
             max_tokens=1600,
         ).choices[0].message.content or ""
     except Exception as e:
@@ -266,7 +285,9 @@ def main(argv: Sequence[str] | None = None):
     res = generate(a.words, a.n, a.mode, a.level, a.max_len, a.max_unknown)
     if isinstance(res, dict):
         for w, s in res.items():
-            print(f"# {w}"); [print(x) for x in s]; print()
+            print(f"# {w}")
+            [print(x) for x in s]
+            print()
     else:
         [print(x) for x in res]
 
